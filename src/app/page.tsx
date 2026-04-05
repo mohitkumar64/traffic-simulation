@@ -10,6 +10,7 @@ import { PiMouseRightClickFill, PiMouseScrollFill } from "react-icons/pi";
 import { ImCtrl } from "react-icons/im";
 import Camera from "@/components/Camera";
 import Mousetrap from 'mousetrap';
+import { PerspectiveCamera } from "@react-three/drei"
 
 function TrafficHUD() {
   const [data, setData] = useState(globalTrafficStore.state);
@@ -140,7 +141,7 @@ export default function Home() {
     Mousetrap.bind("ctrl+c", handler);
 
     return () => {
-      Mousetrap.unbind("ctrl+c", handler);
+      Mousetrap.unbind("ctrl+c" );
     };
   }, []);
 
@@ -207,6 +208,10 @@ export default function Home() {
             fov: 50
           }}
         >
+
+          
+
+      <PerspectiveCamera makeDefault position={[0, 120, 120]} />
           {/* Post Processing Effects */}
           {/* <EffectComposer>
             <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} />
