@@ -69,7 +69,7 @@ function CarOnModel({
 
     let maxMove = actualSpeed * delta;
     const STOP_LINE_DIST = 20;
-    const CAR_GAP = 10;
+    const CAR_GAP = 13;
 
     /* ---------- FIND NEAREST INTERSECTION ---------- */
 
@@ -116,7 +116,7 @@ function CarOnModel({
 
 
 
-      if (distToStopLine >= 0 && distToStopLine < 22   && lights.EW !== "green") {
+      if (distToStopLine >= 0 && distToStopLine < 22 && lights.EW !== "green") {
         const smoothStop = distToStopLine * 0.6;
         if (smoothStop < maxMove) {
           maxMove = smoothStop;
@@ -124,75 +124,44 @@ function CarOnModel({
       }
     }
 
-    
-    let ambulanceBehind = false;
 
-Object.entries(carsPositions.current).forEach(([otherId, other]: any) => {
-  if (otherId === id) return;
+    /* ---------- COLLISION ---------- */
 
-  const sameLane =
-    roadDirection === "Z"
-      ? Math.abs(other.x - pos.x) < 2
-      : Math.abs(other.z - pos.z) < 2;
+    Object.entries(carsPositions.current).forEach(([otherId, otherPos]: any) => {
+      if (otherId === id) return;
 
-  if (!sameLane) return;
+      const isSameLane =
+        roadDirection === "Z"
+          ? Math.abs(otherPos.x - pos.x) < 2
+          : Math.abs(otherPos.z - pos.z) < 2;
 
-  if (other.isAmbulance) {
-    const dist =
-      roadDirection === "Z"
-        ? (pos.z - other.z) * directionMove
-        : (pos.x - other.x) * directionMove;
+      if (!isSameLane) return;
 
-    if (dist > 0 && dist < 35) {
-      ambulanceBehind = true;
-    }
-  }
-});
+      const distToCar =
+        roadDirection === "Z"
+          ? (otherPos.z - pos.z) * directionMove
+          : (otherPos.x - pos.x) * directionMove;
 
-/* ---------- COLLISION ---------- */
-
-// 🚑 ambulance ignores cars (CRITICAL FIX)
-if (!isAmbulance) {
-  Object.entries(carsPositions.current).forEach(([otherId, otherPos]: any) => {
-  if (otherId === id) return;
-
-  const isSameLane =
-    roadDirection === "Z"
-      ? Math.abs(otherPos.x - pos.x) < 2
-      : Math.abs(otherPos.z - pos.z) < 2;
-
-  if (!isSameLane) return;
-
-  const distToCar =
-    roadDirection === "Z"
-      ? (otherPos.z - pos.z) * directionMove
-      : (otherPos.x - pos.x) * directionMove;
-
-  if (distToCar > 0) {
-   let gap = CAR_GAP;
-
-
-
-    // 🚑 ambulance pushes traffic slightly
-    
-
-    const allowedMove = Math.max(0, distToCar - gap);
-    if (allowedMove < maxMove) maxMove = allowedMove;
-  }
-});
-}
+      if (distToCar > 0) {
+        let gap = CAR_GAP;
+        const allowedMove = Math.max(0, distToCar - gap);
+        if (allowedMove < maxMove) maxMove = allowedMove;
+      }
+    });
 
     /* ---------- APPLY MOVEMENT ---------- */
 
+    let completed = false;
     if (maxMove > 0) {
       if (roadDirection === "Z") {
         pos.z += maxMove * directionMove;
         if (pos.z > 130 || pos.z < -50) {
           if (isAmbulance && onComplete) {
             onComplete(id);
+            completed = true;
           } else {
-           if (pos.z > 130) pos.z = -49;
-          if (pos.z < -50) pos.z = 129;
+            if (pos.z > 130) pos.z = -49;
+            if (pos.z < -50) pos.z = 129;
           }
         }
       } else {
@@ -200,6 +169,7 @@ if (!isAmbulance) {
         if (pos.x > 65 || pos.x < -53) {
           if (isAmbulance && onComplete) {
             onComplete(id);
+            completed = true;
           } else {
             if (pos.x > 65) pos.x = -53;
             if (pos.x < -53) pos.x = 65;
@@ -208,8 +178,18 @@ if (!isAmbulance) {
       }
     }
 
-    carsPositions.current[id] = { x: pos.x, z: pos.z, roadDir: roadDirection, lane, directionMove, isAmbulance };
+    if (!completed) {
+      carsPositions.current[id] = { x: pos.x, z: pos.z, roadDir: roadDirection, lane, directionMove, isAmbulance };
+    }
   });
+
+  useEffect(() => {
+    return () => {
+      if (carsPositions.current) {
+        delete carsPositions.current[id];
+      }
+    };
+  }, [id, carsPositions]);
 
   return (
     <group ref={meshRef}
@@ -275,23 +255,14 @@ function TrafficOnModel({ trafficData, lightsState, intersections, carsPositions
         // Prevent flooding the simulation with too many ambulances
         if (prev.length >= 1) return prev;
 
-        const ROADS = [
-          // Z moves from 130 down to -50
-          { direction: "Z", lanes: [-4.5], isOpposite: false, offsetStart: 130, baseX: 0, baseZ: 0 },
-          // Z moves from -50 up to 130
-          { direction: "Z", lanes: [4.6], isOpposite: true, offsetStart: -50, baseX: 0, baseZ: 0 },
-          // X moves from -53 up to 65
-          { direction: "X", lanes: [-5.9], isOpposite: true, offsetStart: 0, baseX: -53.3, baseZ: 0 },
-          // X moves from 65 down to -53
-          { direction: "X", lanes: [-5.9], isOpposite: false, offsetStart: 0, baseX: 60, baseZ: 0 },
-        ];
+
         const AMB_ROADS = [
           // NS only (main road)
           { direction: "Z", lanes: [-4.5], isOpposite: false, offsetStart: 130, baseX: 0, baseZ: 0 },
           { direction: "Z", lanes: [4.6], isOpposite: true, offsetStart: -50, baseX: 0, baseZ: 0 },
         ];
 
-       const r = AMB_ROADS[Math.floor(Math.random() * AMB_ROADS.length)];
+        const r = AMB_ROADS[Math.floor(Math.random() * AMB_ROADS.length)];
 
         return [...prev, {
           id: crypto.randomUUID(),
@@ -486,6 +457,10 @@ export function MainScene(props: any) {
     });
   }
 
+
+
+
+
   /* SMART & TIMER CONTROL */
   useEffect(() => {
     const i = setInterval(() => {
@@ -556,7 +531,7 @@ export function MainScene(props: any) {
             // Check if ambulance demands immediate green
             const emergencyNS = counts[id].ambNS && lightsState.current[id].NS !== "green";
             const emergencyEW = counts[id].ambEW && lightsState.current[id].EW !== "green";
-            
+
             if (!emergencyNS && !emergencyEW) {
               // No emergency, respect normal lock
               const stored = globalTrafficStore.state[id];
@@ -569,45 +544,31 @@ export function MainScene(props: any) {
           }
         }
 
-        // 🚨 EMERGENCY OVERRIDE (TOP PRIORITY)
+        //  EMERGENCY OVERRIDE (TOP PRIORITY) ambulance
         const emergencyNS = counts[id].ambNS;
         const emergencyEW = counts[id].ambEW;
 
+        let winner = "NS";
+
         if (emergencyNS || emergencyEW) {
-
-          const winner = emergencyNS ? "NS" : "EW";
-          const loser = winner === "NS" ? "EW" : "NS";
-
-          // 🚨 instant switch (NO yellow delay)
-          setIntersectionLights(id, loser, "red");
-          setIntersectionLights(id, winner, "green");
-
-          // short lock so it stays green long enough
-          greenLock.current[id] = Date.now() + 5000;
+          winner = emergencyNS ? "NS" : "EW";
 
           // update UI store
           const stored = globalTrafficStore.state[id];
-          stored.NS_queued = counts[id].NS;
-          stored.EW_queued = counts[id].EW;
           stored.currentGreen = winner === "NS" ? "North/South" : "East/West";
-          stored.timeLeftMS = 5000;
-
-          return; // 🚨 skip normal logic
-        }
-
-
-        const NS_score = (counts[id].ambNS ? 10000 : 0) + NS * 2 + waitTime.current[id].NS;
-        const EW_score = (counts[id].ambEW ? 10000 : 0) + EW * 2 + waitTime.current[id].EW;
-
-        let winner = "NS";
-        if (NS_score === 0 && EW_score === 0) {
-          winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
-        } else if (NS_score === EW_score) {
-          winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
-        } else if (NS_score > EW_score) {
-          winner = "NS";
         } else {
-          winner = "EW";
+          const NS_score = NS * 2 + waitTime.current[id].NS;
+          const EW_score = EW * 2 + waitTime.current[id].EW;
+
+          if (NS_score === 0 && EW_score === 0) {
+            winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
+          } else if (NS_score === EW_score) {
+            winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
+          } else if (NS_score > EW_score) {
+            winner = "NS";
+          } else {
+            winner = "EW";
+          }
         }
 
         const currentGreen = lightsState.current[id].NS === "green" ? "NS" : (lightsState.current[id].EW === "green" ? "EW" : null);
@@ -625,8 +586,12 @@ export function MainScene(props: any) {
           greenLock.current[id] = Date.now() + 3000 + 2000 + (winner === "NS" ? NS : EW) * 2800; // Let precisely this many cars pass!
         } else {
           // Relock with exact time needed to clear the remaining queue natively
-          if (winner === "NS" && NS > 0) greenLock.current[id] = Date.now() + 2000 + NS * 2800;
-          if (winner === "EW" && EW > 0) greenLock.current[id] = Date.now() + 2000 + EW * 2800;
+          if (emergencyNS || emergencyEW) {
+            greenLock.current[id] = Date.now() + 5000;
+          } else {
+            if (winner === "NS" && NS > 0) greenLock.current[id] = Date.now() + 2000 + NS * 2800;
+            if (winner === "EW" && EW > 0) greenLock.current[id] = Date.now() + 2000 + EW * 2800;
+          }
         }
 
         // --- Store Update --- //
@@ -650,6 +615,10 @@ export function MainScene(props: any) {
 
     return () => clearInterval(i);
   }, []);
+
+
+
+
 
   return (
     <group {...props}>

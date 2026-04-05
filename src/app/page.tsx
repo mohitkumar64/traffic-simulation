@@ -134,7 +134,7 @@ export default function Home() {
 
   useEffect(() => {
     const handler = () => {
-      setId((prev) => ((prev + 1) % 3));
+      setId((prev) => ((prev + 1) % 5));
     };
 
     Mousetrap.bind("ctrl+c", handler);
@@ -149,7 +149,22 @@ export default function Home() {
     <>
       <div className="h-screen w-full relative font-[family-name:var(--font-geist-sans)]  ">
 
-
+        {/* Camera HUD */}
+        {showUI && (
+          <div className="absolute top-6 right-6 z-20 pointer-events-none transition-all duration-300">
+            <div className="bg-black/60 backdrop-blur-xl border border-white/20 text-white px-5 py-3 rounded-2xl flex items-center space-x-4 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-extrabold tracking-widest text-gray-400 uppercase mb-1 border-b border-white/10 pb-1">Active View</span>
+                <span className="text-sm font-bold tracking-widest text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] mt-1">
+                  {id === 0 ? 'DEFAULT (0)' : `CAMERA ${id}`}
+                </span>
+              </div>
+              <div className="bg-white/10 text-[10px] text-gray-300 font-mono px-2 py-1 rounded border border-white/10 flex items-center shadow-inner">
+                <span className="text-emerald-400 mr-1 mt-[1px] font-sans">⚡</span> CTRL+C
+              </div>
+            </div>
+          </div>
+        )}
         {/* Toggle Button */}
         <div className="absolute bottom-10 right-10 z-20">
           <button
