@@ -42,60 +42,36 @@ function TrafficHUD() {
             </span>
           </div> */}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="  flex flex-col gap-1 items-center justify-center bg-black/60 p-1 rounded-md border border-white/10">
-              <div className="flex gap-1">
-                <div className={`w-4 h-4 rounded-full ${info.NS_state === 'red' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-red-900/40'}`} />
-                <div className={`w-4 h-4 rounded-full ${info.NS_state === 'yellow' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' : 'bg-yellow-900/40'}`} />
-                <div className={`w-4 h-4 rounded-full ${info.NS_state === 'green' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-green-900/40'}`} />
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "NORTH", queued: info.N_queued, state: info.N_state, hex: "#60a5fa" },
+              { label: "SOUTH", queued: info.S_queued, state: info.S_state, hex: "#fb923c" },
+              { label: "EAST", queued: info.E_queued, state: info.E_state, hex: "#c084fc" },
+              { label: "WEST", queued: info.W_queued, state: info.W_state, hex: "#f472b6" }
+            ].map(app => (
+              <div key={app.label} className="bg-black/40 p-3 rounded-lg border border-white/5 shadow-sm flex flex-col gap-3" style={{ borderLeft: `2px solid ${app.hex}` }}>
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] tracking-widest text-gray-500 font-bold">{app.label}</span>
+                  <div className="flex gap-1">
+                    <div className={`w-3 h-3 rounded-full ${app.state === 'red' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-red-900/40'}`} />
+                    <div className={`w-3 h-3 rounded-full ${app.state === 'yellow' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' : 'bg-yellow-900/40'}`} />
+                    <div className={`w-3 h-3 rounded-full ${app.state === 'green' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-green-900/40'}`} />
+                  </div>
+                </div>
+                <div className="flex justify-between items-end">
+                  <span className="text-2xl font-mono text-white font-medium leading-none">{app.queued}</span>
+                  <span className="text-[10px] text-gray-400 font-sans tracking-wide uppercase">
+                    {app.state === 'red' ? "STOPPED" : (app.state === 'yellow' ? "WAITING" : "MOVING")}
+                  </span>
+                </div>
               </div>
-
-              <div className="flex justify-center item-center">
-                <span className="text-xs font-bold tracking-widest text-gray-400">
-                  {info.NS_state}
-                </span>
-              </div>
-
-
-            </div>
-
-            <div className="bg-black/40 py-3 px-5 rounded-lg border border-white/5 border-l-2 border-l-blue-400 shadow-sm relative">
-              <span className="block text-[10px] tracking-widest text-gray-500 font-bold mb-1">NORTH/SOUTH</span>
-              <span className="text-2xl font-mono text-blue-100 font-medium">{info.NS_queued} <span className="text-xs text-gray-600 font-sans tracking-wide">
-                {
-                  info.NS_state === 'red' ? "STOPPED" : (info.NS_state === 'yellow' ? "WAITING" : "MOVING")
-                }
-
-
-              </span></span>
-
-
-            </div>
-            <div className=" flex flex-col gap-1 justify-center items-center bg-black/60 p-1 rounded-md border border-white/10">
-              <div className="flex gap-1">
-                <div className={`w-4 h-4 rounded-full ${info.EW_state === 'red' ? 'bg-red-500 shadow-[0_0_8px_red]' : 'bg-red-900/40'}`} />
-                <div className={`w-4 h-4 rounded-full ${info.EW_state === 'yellow' ? 'bg-amber-400 shadow-[0_0_8px_#fbbf24]' : 'bg-yellow-900/40'}`} />
-                <div className={`w-4 h-4 rounded-full ${info.EW_state === 'green' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-green-900/40'}`} />
-              </div>
-              <div className="flex justify-center item-center">
-                <span className="text-xs font-bold tracking-widest text-gray-400">
-                  {info.EW_state}
-                </span>
-              </div>
-
-            </div>
-            <div className="bg-black/40 p-3 rounded-lg border border-white/5 border-l-2 border-l-purple-400 shadow-sm relative">
-              <span className="block text-[10px] tracking-widest text-gray-500 font-bold mb-1">EAST/WEST</span>
-              <span className="text-2xl font-mono text-purple-100 font-medium">{info.EW_queued} <span className="text-xs text-gray-600 font-sans tracking-wide">WAITING</span></span>
-
-
-            </div>
+            ))}
           </div>
 
           <div className="mt-2 pt-2 border-t border-white/10">
             <div className="flex justify-between text-xs mb-1.5">
               <span className="text-gray-400 font-bold tracking-wider text-[10px]">REMAINING PHASE TIME</span>
-              <span className="text-white font-mono font-medium">{Math.ceil(info.timeLeftMS / 1000)}s</span>
+              <span className="text-white font-mono font-medium">{Math.ceil((info.timeLeftMS + 3000) / 1000)}s</span>
             </div>
             <div className="w-full bg-gray-900/80 rounded-full h-1 overflow-hidden">
               <div
@@ -141,7 +117,7 @@ export default function Home() {
     Mousetrap.bind("ctrl+c", handler);
 
     return () => {
-      Mousetrap.unbind("ctrl+c" );
+      Mousetrap.unbind("ctrl+c");
     };
   }, []);
 
@@ -209,9 +185,9 @@ export default function Home() {
           }}
         >
 
-          
 
-      <PerspectiveCamera makeDefault position={[0, 120, 120]} />
+
+          <PerspectiveCamera makeDefault position={[0, 120, 120]} />
           {/* Post Processing Effects */}
           {/* <EffectComposer>
             <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} />
@@ -238,13 +214,13 @@ export default function Home() {
           />
 
           {/* Sky to provide a realistic background */}
-          {/* <Sky
+          <Sky
             distance={450000}
             sunPosition={[400, -10, 200]}
 
             inclination={0}
             azimuth={0.25}
-          /> */}
+          />
 
 
           {/* <Environment preset="city" /> */}

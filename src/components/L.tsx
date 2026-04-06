@@ -3,6 +3,7 @@ import { useGLTF, Clone } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useRef, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react'
+import postData from './PostData'
 
 export type TrafficLightHandle = {
   setLight: (color: "red" | "yellow" | "green") => void;
@@ -10,18 +11,22 @@ export type TrafficLightHandle = {
 };
 
 export type IntersectionState = {
-  NS_queued: number;
-  EW_queued: number;
-  NS_state: string;
-  EW_state: string;
+  N_queued: number;
+  S_queued: number;
+  E_queued: number;
+  W_queued: number;
+  N_state: string;
+  S_state: string;
+  E_state: string;
+  W_state: string;
   currentGreen: string;
   timeLeftMS: number;
 };
 
 export const globalTrafficStore = {
   state: {
-    I1: { NS_queued: 0, EW_queued: 0, NS_state: "red", EW_state: "red", currentGreen: "Switching Phase", timeLeftMS: 0 } as IntersectionState,
-    I2: { NS_queued: 0, EW_queued: 0, NS_state: "red", EW_state: "red", currentGreen: "Switching Phase", timeLeftMS: 0 } as IntersectionState
+    I1: { N_queued: 0, S_queued: 0, E_queued: 0, W_queued: 0, N_state: "red", S_state: "red", E_state: "red", W_state: "red", currentGreen: "Switching Phase", timeLeftMS: 0 } as IntersectionState,
+    I2: { N_queued: 0, S_queued: 0, E_queued: 0, W_queued: 0, N_state: "red", S_state: "red", E_state: "red", W_state: "red", currentGreen: "Switching Phase", timeLeftMS: 0 } as IntersectionState
   },
   listeners: new Set<Function>(),
   subscribe: (fn: Function) => {
@@ -100,9 +105,10 @@ function CarOnModel({
       const stopLineZ = center.z - (STOP_LINE_DIST * directionMove);
       const distToStopLine = (stopLineZ - pos.z) * directionMove;
 
+      const approach = directionMove === 1 ? 'N' : 'S';
 
-      // ✅ stop at red
-      if (distToStopLine >= 0 && distToStopLine < 22 && lights.NS !== "green") {
+      //  stop at red
+      if (distToStopLine >= 0 && distToStopLine < 22 && lights[approach] !== "green") {
         const smoothStop = distToStopLine * 0.6;
         if (smoothStop < maxMove) {
           maxMove = smoothStop;
@@ -114,9 +120,9 @@ function CarOnModel({
       const stopLineX = center.x - (STOP_LINE_DIST * directionMove);
       const distToStopLine = (stopLineX - pos.x) * directionMove;
 
+      const approach = directionMove === 1 ? 'W' : 'E';
 
-
-      if (distToStopLine >= 0 && distToStopLine < 22 && lights.EW !== "green") {
+      if (distToStopLine >= 0 && distToStopLine < 22 && lights[approach] !== "green") {
         const smoothStop = distToStopLine * 0.6;
         if (smoothStop < maxMove) {
           maxMove = smoothStop;
@@ -155,24 +161,24 @@ function CarOnModel({
     if (maxMove > 0) {
       if (roadDirection === "Z") {
         pos.z += maxMove * directionMove;
-        if (pos.z > 130 || pos.z < -50) {
+        if (pos.z > 160 || pos.z < -100) {
           if (isAmbulance && onComplete) {
             onComplete(id);
             completed = true;
           } else {
-            if (pos.z > 130) pos.z = -49;
-            if (pos.z < -50) pos.z = 129;
+            if (pos.z > 160) pos.z = -90;
+            if (pos.z < -100) pos.z = 150;
           }
         }
       } else {
         pos.x += maxMove * directionMove;
-        if (pos.x > 65 || pos.x < -53) {
+        if (pos.x > 120 || pos.x < -100) {
           if (isAmbulance && onComplete) {
             onComplete(id);
             completed = true;
           } else {
-            if (pos.x > 65) pos.x = -53;
-            if (pos.x < -53) pos.x = 65;
+            if (pos.x > 120) pos.x = -90;
+            if (pos.x < -100) pos.x = 110;
           }
         }
       }
@@ -214,12 +220,14 @@ function TrafficOnModel({ trafficData, lightsState, intersections, carsPositions
   const { scene } = useGLTF('/models/car.glb') as any;
   const { scene: ambulanceScene } = useGLTF('/models/a.glb') as any;
 
+
   const carTemplates = useMemo(() => scene, [scene]);
   const ambTemplate = useMemo(() => ambulanceScene, [ambulanceScene]);
 
   // Baseline standard traffic
   const carsData = useMemo(() => {
     const arr: any[] = [];
+
     const ROADS = [
       { direction: "Z", lanes: [-4.5], isOpposite: false },
       { direction: "Z", lanes: [4.6], isOpposite: true },
@@ -229,16 +237,56 @@ function TrafficOnModel({ trafficData, lightsState, intersections, carsPositions
 
     ROADS.forEach((road) => {
       for (let i = 0; i < 3; i++) {
+
+        // clone car model
+        const carClone = carTemplates.clone();
+
+        // random color
+        const randomColor = new THREE.Color(
+          Math.random(),
+          Math.random(),
+          Math.random()
+        );
+
+        // body mesh names
+        const bodyParts = ["Object_126", "Object_93", "Object_54", "Object_71", "Object_115"];
+
+        carClone.traverse((child) => {
+          if (child.isMesh) {
+
+            child.material = child.material.clone();
+
+            // apply only to body
+            if (bodyParts.includes(child.name)) {
+
+              child.material.color.copy(randomColor);
+
+              if ("metalness" in child.material) {
+                child.material.metalness = 1;
+              }
+
+              if ("roughness" in child.material) {
+                child.material.roughness = 0.6;
+              }
+
+            } else {
+              child.material.color = randomColor
+            }
+
+          }
+
+        });
+
         arr.push({
           id: crypto.randomUUID(),
           lane: road.lanes[0],
           offset: i * 25,
-          speed: 5,
+          speed: 7,
           isOpposite: road.isOpposite,
           roadDirection: road.direction,
           baseX: road.baseX || 0,
           baseZ: road.baseZ || 0,
-          carTemplate: carTemplates,
+          carTemplate: carClone, // use colored clone
           isAmbulance: false,
         });
       }
@@ -268,7 +316,7 @@ function TrafficOnModel({ trafficData, lightsState, intersections, carsPositions
           id: crypto.randomUUID(),
           lane: r.lanes[0],
           offset: r.offsetStart,
-          speed: 5, // Ambulances go considerably faster
+          speed: 7, // Ambulances go considerably faster
           isOpposite: r.isOpposite,
           roadDirection: r.direction,
           baseX: r.baseX || 0,
@@ -407,8 +455,8 @@ export function MainScene(props: any) {
   const { nodes, materials } = useGLTF('/models/l.glb') as any;
 
   const INTERSECTIONS = {
-    I1: { center: { x: 0, z: 0 }, NS: ["L1", "L4"], EW: ["L2", "L3"] },
-    I2: { center: { x: 0, z: 103 }, NS: ["L5", "L8"], EW: ["L6", "L7"] }
+    I1: { center: { x: 0, z: 0 }, N: ["L1"], S: ["L4"], W: ["L3"], E: ["L2"] },
+    I2: { center: { x: 0, z: 103 }, N: ["L8"], S: ["L6"], W: ["L5"], E: ["L7"] }
   };
 
   const TRAFFIC_LIGHTS = [
@@ -426,18 +474,18 @@ export function MainScene(props: any) {
   const trafficRefs = useRef<any>({});
   const carsPositions = useRef<any>({});
   const trafficData = useRef({
-    I1: { NS: 0, EW: 0 },
-    I2: { NS: 0, EW: 0 }
+    I1: { N: 0, S: 0, E: 0, W: 0 },
+    I2: { N: 0, S: 0, E: 0, W: 0 }
   });
 
   const waitTime = useRef<any>({
-    I1: { NS: 0, EW: 0 },
-    I2: { NS: 0, EW: 0 }
+    I1: { N: 0, S: 0, E: 0, W: 0 },
+    I2: { N: 0, S: 0, E: 0, W: 0 }
   });
 
   const lightsState = useRef<any>({
-    I1: { NS: "red", EW: "red" },
-    I2: { NS: "red", EW: "red" }
+    I1: { N: "red", S: "red", E: "red", W: "red" },
+    I2: { N: "red", S: "red", E: "red", W: "red" }
   });
 
   const greenLock = useRef<any>({
@@ -465,16 +513,16 @@ export function MainScene(props: any) {
   useEffect(() => {
     const i = setInterval(() => {
 
-      const counts: Record<"I1" | "I2", { NS: number, EW: number, ambNS: boolean, ambEW: boolean }> = {
-        I1: { NS: 0, EW: 0, ambNS: false, ambEW: false },
-        I2: { NS: 0, EW: 0, ambNS: false, ambEW: false }
+      const counts: Record<"I1" | "I2", { N: number, S: number, E: number, W: number, ambN: boolean, ambS: boolean, ambE: boolean, ambW: boolean }> = {
+        I1: { N: 0, S: 0, E: 0, W: 0, ambN: false, ambS: false, ambE: false, ambW: false },
+        I2: { N: 0, S: 0, E: 0, W: 0, ambN: false, ambS: false, ambE: false, ambW: false }
       };
 
       const STOP_LINE_DIST = 18;
 
       // Calculate true number of cars passing/waiting for each intersection
       Object.values(carsPositions.current).forEach((car: any) => {
-        const { x, z, roadDir, directionMove } = car;
+        const { x, z, roadDir, directionMove, isAmbulance } = car;
 
         let nearestId: "I1" | "I2" | null = null;
         let minDist = Infinity;
@@ -496,47 +544,55 @@ export function MainScene(props: any) {
           const distToStopLine = (stopLineZ - z) * directionMove;
           // Count cars that are queuing or passing (expanded detection zone to pick up ambulances sooner)
           if (distToStopLine > -20 && distToStopLine < 60 && Math.abs(x - center.x) < 15) {
-            counts[nId].NS += 1;
-            if (car.isAmbulance) counts[nId].ambNS = true;
+            const approach = directionMove === 1 ? 'N' : 'S';
+            counts[nId][approach as keyof typeof counts[typeof nId]] += 1 as any;
+            if (isAmbulance) counts[nId][`amb${approach}` as keyof typeof counts[typeof nId]] = true as any;
           }
         } else {
           const stopLineX = center.x - (STOP_LINE_DIST * directionMove);
           const distToStopLine = (stopLineX - x) * directionMove;
           if (distToStopLine > -20 && distToStopLine < 60 && Math.abs(z - center.z) < 15) {
-            counts[nId].EW += 1;
-            if (car.isAmbulance) counts[nId].ambEW = true;
+            const approach = directionMove === 1 ? 'W' : 'E';
+            counts[nId][approach as keyof typeof counts[typeof nId]] += 1 as any;
+            if (isAmbulance) counts[nId][`amb${approach}` as keyof typeof counts[typeof nId]] = true as any;
           }
         }
       });
 
+      const APPROACHES = ["N", "S", "E", "W"] as const;
+
       Object.keys(INTERSECTIONS).forEach((idKey: string) => {
         const id = idKey as "I1" | "I2";
-        const NS = counts[id].NS;
-        const EW = counts[id].EW;
 
-        if (NS > 0 && lightsState.current[id].NS !== "green") waitTime.current[id].NS += 1;
-        if (EW > 0 && lightsState.current[id].EW !== "green") waitTime.current[id].EW += 1;
+        APPROACHES.forEach((app) => {
+          if (counts[id][app] > 0 && lightsState.current[id][app] !== "green") {
+            waitTime.current[id][app] += 1;
+          }
+        });
 
-        const isTransitioning = (lightsState.current[id].NS === "yellow" || lightsState.current[id].EW === "yellow");
+        const isTransitioning = APPROACHES.some(app => lightsState.current[id][app] === "yellow");
 
         if (greenLock.current[id] > Date.now()) {
           if (isTransitioning) {
             // Must wait for transition to finish
             const stored = globalTrafficStore.state[id];
-            stored.NS_queued = NS;
-            stored.EW_queued = EW;
+            stored.N_queued = counts[id].N;
+            stored.S_queued = counts[id].S;
+            stored.E_queued = counts[id].E;
+            stored.W_queued = counts[id].W;
             stored.timeLeftMS = Math.max(0, greenLock.current[id] - Date.now());
             return;
           } else {
             // Check if ambulance demands immediate green
-            const emergencyNS = counts[id].ambNS && lightsState.current[id].NS !== "green";
-            const emergencyEW = counts[id].ambEW && lightsState.current[id].EW !== "green";
+            const hasEmergency = APPROACHES.some(app => counts[id][`amb${app}`] && lightsState.current[id][app] !== "green");
 
-            if (!emergencyNS && !emergencyEW) {
+            if (!hasEmergency) {
               // No emergency, respect normal lock
               const stored = globalTrafficStore.state[id];
-              stored.NS_queued = NS;
-              stored.EW_queued = EW;
+              stored.N_queued = counts[id].N;
+              stored.S_queued = counts[id].S;
+              stored.E_queued = counts[id].E;
+              stored.W_queued = counts[id].W;
               stored.timeLeftMS = Math.max(0, greenLock.current[id] - Date.now());
               return;
             }
@@ -545,64 +601,84 @@ export function MainScene(props: any) {
         }
 
         //  EMERGENCY OVERRIDE (TOP PRIORITY) ambulance
-        const emergencyNS = counts[id].ambNS;
-        const emergencyEW = counts[id].ambEW;
+        let winner: "N" | "S" | "E" | "W" | null = null;
+        let maxScore = -1;
 
-        let winner = "NS";
+        const emergencies = APPROACHES.filter(app => counts[id][`amb${app}`]);
 
-        if (emergencyNS || emergencyEW) {
-          winner = emergencyNS ? "NS" : "EW";
-
-          // update UI store
+        if (emergencies.length > 0) {
+          winner = emergencies[0];
+          // update UI store roughly
           const stored = globalTrafficStore.state[id];
-          stored.currentGreen = winner === "NS" ? "North/South" : "East/West";
+          if (winner === "N") stored.currentGreen = "North";
+          if (winner === "S") stored.currentGreen = "South";
+          if (winner === "E") stored.currentGreen = "East";
+          if (winner === "W") stored.currentGreen = "West";
         } else {
-          const NS_score = NS * 2 + waitTime.current[id].NS;
-          const EW_score = EW * 2 + waitTime.current[id].EW;
+          APPROACHES.forEach(app => {
+            const score = counts[id][app] * 2 + waitTime.current[id][app];
+            if (score > maxScore) {
+              maxScore = score;
+              winner = app;
+            }
+          });
 
-          if (NS_score === 0 && EW_score === 0) {
-            winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
-          } else if (NS_score === EW_score) {
-            winner = lightsState.current[id].NS === "green" ? "NS" : "EW";
-          } else if (NS_score > EW_score) {
-            winner = "NS";
+          if (maxScore === 0) {
+            const currentG = APPROACHES.find(app => lightsState.current[id][app] === "green");
+            winner = currentG || "N";
           } else {
-            winner = "EW";
+            const currentG = APPROACHES.find(app => lightsState.current[id][app] === "green");
+            if (currentG) {
+              const currScore = counts[id][currentG] * 2 + waitTime.current[id][currentG];
+              if (currScore === maxScore) {
+                winner = currentG;
+              }
+            }
           }
         }
 
-        const currentGreen = lightsState.current[id].NS === "green" ? "NS" : (lightsState.current[id].EW === "green" ? "EW" : null);
+        const currentGreen = APPROACHES.find(app => lightsState.current[id][app] === "green") || null;
 
-        if (winner !== currentGreen) {
-          const loser = winner === "NS" ? "EW" : "NS";
-
-          setIntersectionLights(id, loser, "yellow");
-
-          setTimeout(() => {
-            setIntersectionLights(id, loser, "red");
+        if (winner && winner !== currentGreen) {
+          if (currentGreen) {
+            setIntersectionLights(id, currentGreen, "yellow");
+            setTimeout(() => {
+              setIntersectionLights(id, currentGreen, "red");
+              setIntersectionLights(id, winner!, "green");
+            }, 3000); // light yellow 
+          } else {
             setIntersectionLights(id, winner, "green");
-          }, 5000); // 5 second yellow to clear the intersection completely
+          }
 
-          greenLock.current[id] = Date.now() + 3000 + 2000 + (winner === "NS" ? NS : EW) * 2800; // Let precisely this many cars pass!
-        } else {
+          const winnerQueue = counts[id][winner];
+          greenLock.current[id] = Date.now() + 3000 + 2000 + winnerQueue * 2800; // Let precisely this many cars pass!
+        } else if (winner) {
           // Relock with exact time needed to clear the remaining queue natively
-          if (emergencyNS || emergencyEW) {
+          if (emergencies.some(app => app === winner)) {
             greenLock.current[id] = Date.now() + 5000;
           } else {
-            if (winner === "NS" && NS > 0) greenLock.current[id] = Date.now() + 2000 + NS * 2800;
-            if (winner === "EW" && EW > 0) greenLock.current[id] = Date.now() + 2000 + EW * 2800;
+            const winnerQueue = counts[id][winner];
+            if (winnerQueue > 0) greenLock.current[id] = Date.now() + 2000 + winnerQueue * 2800;
           }
         }
 
         // --- Store Update --- //
         const stored = globalTrafficStore.state[id];
-        stored.NS_queued = NS;
-        stored.EW_queued = EW;
-        stored.NS_state = lightsState.current[id].NS;
-        stored.EW_state = lightsState.current[id].EW;
+        stored.N_queued = counts[id].N;
+        stored.S_queued = counts[id].S;
+        stored.E_queued = counts[id].E;
+        stored.W_queued = counts[id].W;
+        stored.N_state = lightsState.current[id].N;
+        stored.S_state = lightsState.current[id].S;
+        stored.E_state = lightsState.current[id].E;
+        stored.W_state = lightsState.current[id].W;
 
-        if (lightsState.current[id].NS === "green") stored.currentGreen = "North/South";
-        else if (lightsState.current[id].EW === "green") stored.currentGreen = "East/West";
+        const newGreen = APPROACHES.find(app => lightsState.current[id][app] === "green");
+
+        if (newGreen === "N") stored.currentGreen = "North";
+        else if (newGreen === "S") stored.currentGreen = "South";
+        else if (newGreen === "E") stored.currentGreen = "East";
+        else if (newGreen === "W") stored.currentGreen = "West";
         else stored.currentGreen = "Switching Phase";
 
         stored.timeLeftMS = Math.max(0, greenLock.current[id] - Date.now());
