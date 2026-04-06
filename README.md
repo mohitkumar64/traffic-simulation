@@ -1,63 +1,38 @@
-# 🚦 Smart Traffic Control System (3D Simulation)
+# 🚦 Smart Traffic Control System
+
+> A real-time adaptive traffic management simulation built with **React** and **Three.js** — featuring dynamic signal control, ambulance priority overrides, and live traffic monitoring across multiple intersections.
+
+---
 
 ## 📸 Preview
 
-### 🧠 Intelligent Traffic Flow
-![Traffic Simulation](./assets/traffic-view.png)
-
-### 📊 Live System Overlay
-![Dashboard Overlay](./assets/dashboard-view.png)
-
----
-
-## ⚡ What This Project Does
-
-This is a **real-time adaptive traffic control simulation** built using **Three.js + React Three Fiber**.
-
-Unlike basic timer-based systems, this simulation:
-
-- Tracks vehicle movement dynamically  
-- Detects congestion per direction (N/S/E/W)  
-- Adjusts traffic signals based on real-time conditions  
-- Handles **ambulance priority overrides**  
-- Prevents collisions with spacing logic  
-- Simulates continuous urban traffic  
-
----
-
-## 🧠 Core Features
-
-### 🚗 Smart Traffic Logic
-- Each intersection calculates:
-  - Queue length
-  - Wait time  
-- Decision formula:
-
-```js
-score = (cars * 2) + wait_time
-
-# 🚦 Smart Traffic Simulation System
-
-An intelligent, real-time traffic management simulation built with React and Three.js — featuring dynamic signal control, ambulance priority overrides, and live traffic monitoring across multiple intersections.
+![Traffic Simulation](./image.png)
 
 ---
 
 ## ✨ Features
 
-### 🚑 Emergency Handling (Ambulance Priority)
+### 🧠 Adaptive Signal Intelligence
+- Scans all vehicles every second and groups them by **intersection** and **direction** (N/S/E/W)
+- Calculates **queue length** and **wait time** per lane
+- Assigns the green signal to the highest-scoring direction using:
+  ```js
+  const score = (queuedCars * 2) + waitTime;
+  ```
+- Signal lock duration scales dynamically with traffic density
+
+### 🚑 Ambulance Priority Override
 - Ambulances spawn dynamically within the simulation
-- System instantly overrides normal traffic flow upon detection
-- Forces a green signal in the ambulance's direction
-- Can bypass timing locks if required
+- Instantly overrides normal traffic flow upon detection
+- Forces a green signal in the ambulance's direction, bypassing timing locks if required
 
 ### ⛔ Collision & Spacing System
 - Cars maintain a configurable minimum gap (`CAR_GAP`)
-- Lane-based collision detection
-- Smooth deceleration near stop lines and other vehicles
+- Lane-based collision detection with smooth deceleration near stop lines and other vehicles
 
 ### 🚦 Dynamic Traffic Lights
 - Fully programmatic signal control
-- Supports three light states: 🔴 Red · 🟡 Yellow (transition) · 🟢 Green
+- Three light states: 🔴 Red · 🟡 Yellow (transition) · 🟢 Green
 - Includes realistic transition delays
 
 ### 🌍 Multi-Intersection Support
@@ -87,33 +62,23 @@ An intelligent, real-time traffic management simulation built with React and Thr
 
 ```
 /components
-  ├── CarOnModel        # Handles vehicle movement & collision
+  ├── CarOnModel        # Vehicle movement & collision logic
   ├── TrafficOnModel    # Spawns cars & ambulances
   ├── TrafficLight      # Controls signal states
-  └── MainScene         # Core simulation logic
+  └── MainScene         # Core simulation orchestration
 ```
 
 ---
 
 ## 🔥 How It Works
 
-1. Cars move continuously across lanes in the simulation
-2. The system scans all vehicles every second
+1. Cars move continuously across lanes in the 3D scene
+2. The system scans all vehicles **every second**
 3. Vehicles are grouped by **intersection** and **direction**
-4. For each group, the system calculates **queue size** and **wait time**
-5. A score is computed per direction and the green signal is assigned to the highest scorer
+4. For each group, **queue size** and **wait time** are calculated
+5. A score is computed per direction — the highest scorer gets the green light
 6. Signal lock duration scales with traffic density
-7. If an ambulance is detected, the scoring system is immediately overridden
-
----
-
-## 🧪 Core Scoring Logic
-
-```js
-const score = counts[id][app] * 2 + waitTime.current[id][app];
-```
-
-The score weighs both the number of queued vehicles and how long they've been waiting, ensuring a fair and responsive signal allocation.
+7. If an ambulance is detected, the scoring system is **immediately overridden**
 
 ---
 
@@ -138,6 +103,12 @@ http://localhost:3000
 ```
 
 ---
+
+## 👥 Contributors
+
+This project was built collaboratively as a group project.
+
+
 
 ## 📄 License
 
