@@ -6,7 +6,7 @@
 
 ## 📸 Preview
 
-![Traffic Simulation](/image.png)
+![Traffic Simulation](/models/image.png)
 
 ---
 
