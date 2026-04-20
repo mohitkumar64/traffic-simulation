@@ -251,31 +251,27 @@ function TrafficOnModel({ trafficData, lightsState, intersections, carsPositions
         // body mesh names
         const bodyParts = ["Object_126", "Object_93", "Object_54", "Object_71", "Object_115"];
 
-        carClone.traverse((child) => {
-          if (child.isMesh) {
+        carClone.traverse((child: THREE.Object3D) => {
+  if (child instanceof THREE.Mesh) {
 
-            child.material = child.material.clone();
+    child.material = child.material.clone();
 
-            // apply only to body
-            if (bodyParts.includes(child.name)) {
+    if (bodyParts.includes(child.name)) {
+      child.material.color.copy(randomColor);
 
-              child.material.color.copy(randomColor);
+      if ("metalness" in child.material) {
+        child.material.metalness = 1;
+      }
 
-              if ("metalness" in child.material) {
-                child.material.metalness = 1;
-              }
+      if ("roughness" in child.material) {
+        child.material.roughness = 0.6;
+      }
 
-              if ("roughness" in child.material) {
-                child.material.roughness = 0.6;
-              }
-
-            } else {
-              child.material.color = randomColor
-            }
-
-          }
-
-        });
+    } else {
+      child.material.color.copy(randomColor);
+    }
+  }
+});
 
         arr.push({
           id: crypto.randomUUID(),
@@ -545,16 +541,16 @@ export function MainScene(props: any) {
           // Count cars that are queuing or passing (expanded detection zone to pick up ambulances sooner)
           if (distToStopLine > -20 && distToStopLine < 60 && Math.abs(x - center.x) < 15) {
             const approach = directionMove === 1 ? 'N' : 'S';
-            counts[nId][approach as keyof typeof counts[typeof nId]] += 1 as any;
-            if (isAmbulance) counts[nId][`amb${approach}` as keyof typeof counts[typeof nId]] = true as any;
+            (counts[nId] as any)[approach] += 1;
+            if (isAmbulance) (counts[nId] as any)[`amb${approach}`] = true;
           }
         } else {
           const stopLineX = center.x - (STOP_LINE_DIST * directionMove);
           const distToStopLine = (stopLineX - x) * directionMove;
           if (distToStopLine > -20 && distToStopLine < 60 && Math.abs(z - center.z) < 15) {
             const approach = directionMove === 1 ? 'W' : 'E';
-            counts[nId][approach as keyof typeof counts[typeof nId]] += 1 as any;
-            if (isAmbulance) counts[nId][`amb${approach}` as keyof typeof counts[typeof nId]] = true as any;
+            (counts[nId] as any)[approach] += 1;
+            if (isAmbulance) (counts[nId] as any)[`amb${approach}`] = true;
           }
         }
       });
